@@ -1,0 +1,116 @@
+{
+  "_note": "Numeric source for implemented/provisional balance. Status fields indicate whether values are locked.",
+  "ui": {
+    "reference_width": 1920,
+    "reference_height": 1080,
+    "validation_width": 1280,
+    "validation_height": 720
+  },
+  "stage_curve": {
+    "segments": [
+      {
+        "min": 1,
+        "max": 1000,
+        "base_stage": 1,
+        "base_dps": 10.0,
+        "growth": 1.0115911122
+      },
+      {
+        "min": 1001,
+        "max": 2000,
+        "base_stage": 1000,
+        "base_dps": 1000000.0,
+        "growth": 1.003919685
+      },
+      {
+        "min": 2001,
+        "max": 3000,
+        "base_stage": 2000,
+        "base_dps": 50000000.0,
+        "growth": 1.001610734
+      }
+    ],
+    "post_3000": {
+      "base_stage": 3000,
+      "base_dps": 250000000.0,
+      "doubles_every_stages": 1000
+    },
+    "normal_enemy_target_seconds": 5.0,
+    "boss_time_limit_seconds": {
+      "value": 15.0,
+      "status": "PROVISIONAL"
+    }
+  },
+  "gacha": {
+    "cost_single": 50,
+    "cost_ten": 500,
+    "rates": {
+      "N": 0.55,
+      "R": 0.34,
+      "SR": 0.1,
+      "SSR": 0.01
+    },
+    "ten_pull_sr_plus_guarantee": true
+  },
+  "equipment": {
+    "max_level": 30,
+    "gate_success": {
+      "5": 0.4,
+      "10": 0.25,
+      "15": 0.15,
+      "20": 0.1,
+      "25": 0.05,
+      "30": 0.02
+    },
+    "gate_cost": {
+      "5": 100,
+      "10": 300,
+      "15": 800,
+      "20": 2000,
+      "25": 5000,
+      "30": 12000
+    }
+  },
+  "shard": {
+    "max_level": 5,
+    "inventory_cap": {
+      "value": 200,
+      "status": "PROVISIONAL"
+    },
+    "growth_tiers_of_initial": [
+      0.15,
+      0.2,
+      0.25,
+      0.3
+    ],
+    "growth_probabilities": {
+      "status": "UNRESOLVED"
+    },
+    "upgrade_cost": {
+      "2": 10,
+      "3": 30,
+      "4": 80,
+      "5": 200
+    }
+  },
+  "return": {
+    "first_stage": 100,
+    "step": 100,
+    "requirement_cap": 5000,
+    "milestone_step": 500,
+    "milestone_damage_bonus": {
+      "value": 0.05,
+      "status": "PROVISIONAL"
+    }
+  },
+  "elements": {
+    "advantage": 1.2,
+    "disadvantage": 0.8,
+    "neutral": 1.0,
+    "base_application_rate": 0.2,
+    "application_duration_seconds": {
+      "value": 5.0,
+      "status": "PROVISIONAL"
+    }
+  }
+}
