@@ -10,8 +10,12 @@ const EquipmentDefinitionScript = preload("res://systems/equipment/equipment_def
 const EquipmentStateScript = preload("res://systems/equipment/equipment_state.gd")
 const EquipmentAssignmentScript = preload("res://systems/equipment/equipment_assignment.gd")
 const EquipmentStatServiceScript = preload("res://systems/equipment/equipment_stat_service.gd")
+const EquipmentUpgradeServiceScript = preload("res://systems/equipment/equipment_upgrade_service.gd")
 const ReturnStateScript = preload("res://systems/return/return_state.gd")
 const ReturnServiceScript = preload("res://systems/return/return_service.gd")
+const ShardInventoryScript = preload("res://systems/shards/shard_inventory.gd")
+const ShardServiceScript = preload("res://systems/shards/shard_service.gd")
+const ShardDefinitionScript = preload("res://systems/shards/shard_definition.gd")
 const GachaPoolScript = preload("res://systems/gacha/gacha_pool.gd")
 const GachaInventoryScript = preload("res://systems/gacha/gacha_inventory.gd")
 const GachaServiceScript = preload("res://systems/gacha/gacha_service.gd")
@@ -25,6 +29,9 @@ var stage_progression
 var combat_session
 var character_stat_service
 var equipment_stat_service
+var equipment_upgrade_service
+var shard_service
+var shard_inventory
 var return_state
 var return_service
 var gacha_service
@@ -49,7 +56,14 @@ func _ready() -> void:
 	stage_progression.stage_changed.connect(_on_stage_changed)
 	character_stat_service = CharacterStatServiceScript.new()
 	equipment_stat_service = EquipmentStatServiceScript.new()
+	equipment_upgrade_service = EquipmentUpgradeServiceScript.new()
+	shard_service = ShardServiceScript.new()
+	shard_inventory = ShardInventoryScript.new(shard_service.inventory_cap())
 	return_state = ReturnStateScript.new()
+	return_state.snacks = 500
+	return_state.parts = 500
+	return_state.shard_upgrade_material = 100
+	return_state.stones = 500
 	return_service = ReturnServiceScript.new()
 	gacha_service = GachaServiceScript.new()
 	gacha_inventory = GachaInventoryScript.new()
@@ -61,6 +75,7 @@ func _ready() -> void:
 	_create_debug_characters()
 	team_state = TeamStateScript.new(_debug_character_ids())
 	_create_debug_equipment()
+	_create_debug_shards()
 	combat_session = CombatSessionScript.new(stage_progression, _create_debug_party())
 
 func _process(delta: float) -> void:
@@ -110,7 +125,7 @@ func create_save_data() -> Dictionary:
 		debug_equipment_states,
 		equipment_assignment,
 		gacha_inventory,
-		null,
+		shard_inventory,
 		team_state
 	)
 
@@ -123,7 +138,7 @@ func apply_save_data(save_data: Dictionary) -> Dictionary:
 		debug_equipment_states,
 		equipment_assignment,
 		gacha_inventory,
-		null,
+		shard_inventory,
 		team_state
 	)
 	combat_session = CombatSessionScript.new(stage_progression, _create_debug_party())
@@ -132,6 +147,88 @@ func apply_save_data(save_data: Dictionary) -> Dictionary:
 func select_team_slot(slot_index: int) -> void:
 	team_state.select_slot(slot_index)
 	combat_session = CombatSessionScript.new(stage_progression, _create_debug_party())
+
+func set_team_member(member_index: int, character_id: String) -> Dictionary:
+	if not _debug_character_definitions_by_id().has(character_id):
+		return {"success": false, "reason": "unknown_character"}
+	var members = team_state.current_members()
+	for index in range(0, members.size()):
+		if index != member_index and members[index] == character_id:
+			return {"success": false, "reason": "duplicate_character"}
+	team_state.set_member(team_state.selected_team_slot, member_index, character_id)
+	combat_session = CombatSessionScript.new(stage_progression, _create_debug_party())
+	return {"success": true}
+
+func level_up_character(character_id: String) -> Dictionary:
+	var definitions = _debug_character_definitions_by_id()
+	var states = _debug_character_states_by_id()
+	if not definitions.has(character_id) or not states.has(character_id):
+		return {"success": false, "reason": "unknown_character"}
+	var state = states[character_id]
+	var cost = character_stat_service.level_up_cost(state.level)
+	if cost <= 0:
+		return {"success": false, "reason": "max_level", "cost": 0}
+	if return_state.snacks < cost:
+		return {"success": false, "reason": "not_enough_snacks", "cost": cost}
+	return_state.snacks -= cost
+	state.set_level(state.level + 1)
+	combat_session = CombatSessionScript.new(stage_progression, _create_debug_party())
+	return {"success": true, "cost": cost, "level": state.level}
+
+func upgrade_equipment(equipment_id: String) -> Dictionary:
+	if not debug_equipment_states.has(equipment_id):
+		return {"success": false, "reason": "unknown_equipment"}
+	var state = debug_equipment_states[equipment_id]
+	var cost = equipment_upgrade_service.next_attempt_cost(state)
+	if cost <= 0:
+		return {"success": false, "reason": "max_level", "cost": 0}
+	if return_state.parts < cost:
+		return {"success": false, "reason": "not_enough_parts", "cost": cost}
+	return_state.parts -= cost
+	var result = equipment_upgrade_service.attempt_upgrade(state)
+	combat_session = CombatSessionScript.new(stage_progression, _create_debug_party())
+	return result
+
+func equip_item(character_id: String, equipment_id: String) -> Dictionary:
+	if not _debug_character_definitions_by_id().has(character_id):
+		return {"success": false, "reason": "unknown_character"}
+	if not debug_equipment_states.has(equipment_id):
+		return {"success": false, "reason": "unknown_equipment"}
+	for existing_character_id in equipment_assignment._by_character_id.keys():
+		if existing_character_id != character_id and equipment_assignment._by_character_id[existing_character_id] == equipment_id:
+			equipment_assignment.unequip(str(existing_character_id))
+	equipment_assignment.equip(character_id, equipment_id)
+	combat_session = CombatSessionScript.new(stage_progression, _create_debug_party())
+	return {"success": true}
+
+func set_equipment_shard(equipment_id: String, socket_index: int, shard_id: String) -> Dictionary:
+	if not debug_equipment_states.has(equipment_id):
+		return {"success": false, "reason": "unknown_equipment"}
+	if shard_id != "" and not shard_inventory.has_shard(shard_id):
+		return {"success": false, "reason": "unknown_shard"}
+	for other_equipment_id in debug_equipment_states.keys():
+		var other_state = debug_equipment_states[other_equipment_id]
+		for index in range(0, other_state.shard_socket_ids.size()):
+			if other_equipment_id != equipment_id and other_state.shard_socket_ids[index] == shard_id:
+				other_state.set_shard_socket(index, "")
+	var state = debug_equipment_states[equipment_id]
+	state.set_shard_socket(socket_index, shard_id)
+	combat_session = CombatSessionScript.new(stage_progression, _create_debug_party())
+	return {"success": true}
+
+func upgrade_shard(shard_id: String) -> Dictionary:
+	if not shard_inventory.has_shard(shard_id):
+		return {"success": false, "reason": "unknown_shard"}
+	var shard = shard_inventory.get_shard(shard_id)
+	var cost = shard_service.upgrade_cost(shard.level + 1)
+	if cost <= 0:
+		return {"success": false, "reason": "max_level", "cost": 0}
+	if return_state.shard_upgrade_material < cost:
+		return {"success": false, "reason": "not_enough_shard_material", "cost": cost}
+	return_state.shard_upgrade_material -= cost
+	var result = shard_service.upgrade_shard(shard)
+	combat_session = CombatSessionScript.new(stage_progression, _create_debug_party())
+	return result
 
 func save_to_path(path: String) -> bool:
 	return save_service.save_to_path(path, create_save_data())
@@ -190,10 +287,10 @@ func _create_debug_party() -> Array:
 
 func _create_debug_characters() -> void:
 	debug_character_definitions = [
-		CharacterDefinitionScript.new("debug_ssr_fire", "SSR", "fire", "pure_dps", 1.0),
-		CharacterDefinitionScript.new("debug_sr_water", "SR", "water", "pure_dps", 1.0),
-		CharacterDefinitionScript.new("debug_r_grass", "R", "grass", "pure_dps", 1.0),
-		CharacterDefinitionScript.new("debug_n_none", "N", "none", "pure_dps", 1.0)
+		CharacterDefinitionScript.new("debug_ssr_fire", "SSR", "fire", "pure_dps", 1.0, "ひなた"),
+		CharacterDefinitionScript.new("debug_sr_water", "SR", "water", "pure_dps", 1.0, "しずく"),
+		CharacterDefinitionScript.new("debug_r_grass", "R", "grass", "pure_dps", 1.0, "こはる"),
+		CharacterDefinitionScript.new("debug_n_none", "N", "none", "pure_dps", 1.0, "まめ")
 	]
 	debug_character_states = [
 		CharacterStateScript.new("debug_ssr_fire", 1, 0),
@@ -222,10 +319,10 @@ func _debug_character_states_by_id() -> Dictionary:
 
 func _create_debug_equipment() -> void:
 	debug_equipment_definitions = {
-		"debug_ssr_blade": EquipmentDefinitionScript.new("debug_ssr_blade", "SSR", "attack"),
-		"debug_sr_blade": EquipmentDefinitionScript.new("debug_sr_blade", "SR", "attack"),
-		"debug_r_blade": EquipmentDefinitionScript.new("debug_r_blade", "R", "attack"),
-		"debug_n_blade": EquipmentDefinitionScript.new("debug_n_blade", "N", "attack")
+		"debug_ssr_blade": EquipmentDefinitionScript.new("debug_ssr_blade", "SSR", "attack", "星灯りのつえ"),
+		"debug_sr_blade": EquipmentDefinitionScript.new("debug_sr_blade", "SR", "attack", "水玉のベル"),
+		"debug_r_blade": EquipmentDefinitionScript.new("debug_r_blade", "R", "attack", "若葉のピン"),
+		"debug_n_blade": EquipmentDefinitionScript.new("debug_n_blade", "N", "attack", "ちいさな木刀")
 	}
 	debug_equipment_states = {
 		"debug_ssr_blade": EquipmentStateScript.new("debug_ssr_blade", 1),
@@ -238,6 +335,13 @@ func _create_debug_equipment() -> void:
 	equipment_assignment.equip("debug_r_grass", "debug_r_blade")
 	equipment_assignment.equip("debug_n_none", "debug_n_blade")
 
+func _create_debug_shards() -> void:
+	shard_inventory.add_shard(shard_service.create_shard("mock_shard_attack", "SSR", ShardDefinitionScript.STAT_ATTACK_PERCENT, ShardDefinitionScript.STAT_CRIT_RATE, 3.3, 0.06))
+	shard_inventory.add_shard(shard_service.create_shard("mock_shard_speed", "SSR", ShardDefinitionScript.STAT_ATTACK_SPEED_PERCENT, ShardDefinitionScript.STAT_ATTACK_PERCENT, 0.22, 1.2))
+	shard_inventory.add_shard(shard_service.create_shard("mock_shard_element", "SSR", ShardDefinitionScript.STAT_ELEMENT_DAMAGE_PERCENT, ShardDefinitionScript.STAT_CRIT_DAMAGE, 0.45, 0.24))
+	debug_equipment_states["debug_ssr_blade"].set_shard_socket(0, "mock_shard_attack")
+	debug_equipment_states["debug_ssr_blade"].set_shard_socket(1, "mock_shard_speed")
+
 func _equipment_modifiers_for_character(character_id: String) -> Dictionary:
 	var equipment_id = equipment_assignment.equipped_equipment_id(character_id)
 	if equipment_id == "":
@@ -246,6 +350,7 @@ func _equipment_modifiers_for_character(character_id: String) -> Dictionary:
 		return {}
 	if not debug_equipment_states.has(equipment_id):
 		return {}
-	var modifiers = equipment_stat_service.stat_modifiers(debug_equipment_definitions[equipment_id], debug_equipment_states[equipment_id])
+	var shard_modifiers = shard_service.equipped_modifiers(debug_equipment_states[equipment_id], shard_inventory)
+	var modifiers = equipment_stat_service.combined_stat_modifiers(debug_equipment_definitions[equipment_id], debug_equipment_states[equipment_id], shard_modifiers)
 	modifiers["milestone_damage_percent"] = milestone_damage_percent()
 	return modifiers

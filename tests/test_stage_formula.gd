@@ -1,5 +1,4 @@
 extends SceneTree
-vrc-prestage-game-templete
 const EPSILON = 0.001
 const StageFormulaScript = preload("res://systems/progression/stage_formula.gd")
 const StageProgressionScript = preload("res://systems/progression/stage_progression.gd")
