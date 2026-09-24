@@ -52,8 +52,63 @@
     },
     "ten_pull_sr_plus_guarantee": true
   },
+  "character": {
+    "max_level": 30,
+    "level_costs": [
+      10,
+      15,
+      20,
+      30,
+      45,
+      65,
+      90,
+      125,
+      175,
+      250,
+      350,
+      500,
+      700,
+      1000,
+      1400,
+      2000,
+      2800,
+      4000,
+      5500,
+      7500,
+      10000,
+      13500,
+      18000,
+      24000,
+      32000,
+      42000,
+      55000,
+      75000,
+      100000
+    ],
+    "pure_dps_base_attack": {
+      "N": {"1": 3.0, "30": 30000.0},
+      "R": {"1": 4.2, "30": 42000.0},
+      "SR": {"1": 6.5, "30": 65000.0},
+      "SSR": {"1": 10.0, "30": 100000.0}
+    },
+    "archetype_attack_modifiers": {
+      "status": "PROVISIONAL",
+      "pure_dps": 1.0,
+      "crit": 0.9,
+      "speed": 0.8,
+      "reaction": 0.75,
+      "support": 0.7
+    }
+  },
   "equipment": {
     "max_level": 30,
+    "socket_count": 3,
+    "attack_percent_by_rarity_level": {
+      "N": {"1": 0.055, "30": 5.5},
+      "R": {"1": 0.075, "30": 7.5},
+      "SR": {"1": 0.1, "30": 10.0},
+      "SSR": {"1": 0.12, "30": 12.0}
+    },
     "gate_success": {
       "5": 0.4,
       "10": 0.25,
@@ -73,6 +128,28 @@
   },
   "shard": {
     "max_level": 5,
+    "stat_pool": [
+      "attack_percent",
+      "critical_rate",
+      "critical_damage",
+      "attack_speed_percent",
+      "element_damage_percent"
+    ],
+    "ssr_main_ranges": {
+      "attack_percent": {"min": 1.0, "max": 1.0},
+      "critical_rate": {"min": 0.2, "max": 0.2},
+      "critical_damage": {"min": 0.6, "max": 0.6},
+      "attack_speed_percent": {"min": 0.375, "max": 0.375},
+      "element_damage_percent": {"min": 0.475, "max": 0.475}
+    },
+    "ssr_sub_ranges": {
+      "status": "PROVISIONAL",
+      "attack_percent": {"min": 0.4, "max": 0.4},
+      "critical_rate": {"min": 0.16, "max": 0.16},
+      "critical_damage": {"min": 0.48, "max": 0.48},
+      "attack_speed_percent": {"min": 0.3, "max": 0.3},
+      "element_damage_percent": {"min": 0.38, "max": 0.38}
+    },
     "inventory_cap": {
       "value": 200,
       "status": "PROVISIONAL"

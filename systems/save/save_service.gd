@@ -98,6 +98,7 @@ func _serialize_equipment_states(equipment_states: Dictionary) -> Dictionary:
 	for equipment_id in equipment_states.keys():
 		var state = equipment_states[equipment_id]
 		data[equipment_id] = {
+			"definition_id": state.definition_id,
 			"level": state.level,
 			"shard_socket_ids": state.shard_socket_ids.duplicate(true)
 		}
@@ -110,6 +111,7 @@ func _serialize_shard_inventory(shard_inventory) -> Dictionary:
 	for shard_id in shard_inventory.shards.keys():
 		var shard = shard_inventory.shards[shard_id]
 		data[shard_id] = {
+			"definition_id": shard.definition_id,
 			"rarity": shard.rarity,
 			"main_stat": shard.main_stat,
 			"sub_stat": shard.sub_stat,
@@ -143,12 +145,13 @@ func _apply_character_states(data, character_states: Array, warnings: Array) -> 
 	for state in character_states:
 		states_by_id[state.character_id] = state
 	for character_id in data.keys():
-		if not states_by_id.has(character_id):
-			warnings.append("unknown character id: %s" % str(character_id))
-			continue
 		var source = data[character_id]
 		if typeof(source) != TYPE_DICTIONARY:
 			continue
+		if not states_by_id.has(character_id):
+			var created_state = CharacterStateScript.new(str(character_id), 1, 0)
+			character_states.append(created_state)
+			states_by_id[character_id] = created_state
 		states_by_id[character_id].set_level(int(source.get("level", 1)))
 		states_by_id[character_id].set_najimi(int(source.get("najimi", 0)))
 
@@ -157,13 +160,16 @@ func _apply_equipment_states(data, equipment_states: Dictionary, warnings: Array
 		warnings.append("owned_equipments was not a dictionary")
 		return
 	for equipment_id in data.keys():
-		if not equipment_states.has(equipment_id):
-			warnings.append("unknown equipment id: %s" % str(equipment_id))
-			continue
 		var source = data[equipment_id]
 		if typeof(source) != TYPE_DICTIONARY:
 			continue
+		if not equipment_states.has(equipment_id):
+			var definition_id = str(source.get("definition_id", str(equipment_id)))
+			equipment_states[equipment_id] = EquipmentStateScript.new(str(equipment_id), 1, definition_id)
 		var state = equipment_states[equipment_id]
+		state.definition_id = str(source.get("definition_id", state.definition_id))
+		if state.definition_id == "":
+			state.definition_id = str(equipment_id)
 		state.set_level(int(source.get("level", 1)))
 		var sockets = source.get("shard_socket_ids", ["", "", ""])
 		if typeof(sockets) == TYPE_ARRAY:
@@ -246,7 +252,8 @@ func _apply_shards(data, shard_inventory, warnings: Array) -> void:
 			main_stat,
 			sub_stat,
 			max(0.0, float(source.get("initial_main_value", 0.0))),
-			max(0.0, float(source.get("initial_sub_value", 0.0)))
+			max(0.0, float(source.get("initial_sub_value", 0.0))),
+			str(source.get("definition_id", "shard_base"))
 		)
 		shard.level = clamp(int(source.get("level", 1)), ShardStateScript.MIN_LEVEL, ShardStateScript.MAX_LEVEL)
 		shard.current_main_value = max(0.0, float(source.get("current_main_value", shard.initial_main_value)))

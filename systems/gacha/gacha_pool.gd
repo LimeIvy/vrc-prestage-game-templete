@@ -19,16 +19,16 @@ func has_rarity(rarity: String) -> bool:
 
 static func default_character_pool():
 	return GachaPool.new(CATEGORY_CHARACTER, {
-		"N": ["char_n_001", "char_n_002"],
-		"R": ["char_r_001", "char_r_002"],
-		"SR": ["char_sr_001", "char_sr_002"],
-		"SSR": ["char_ssr_001", "char_ssr_002"]
+		"N": ["char_kokemaru", "char_shiromaru", "char_pyon", "char_zun"],
+		"R": ["char_kuromo", "char_nobiru", "char_hakonya", "char_mofuri"],
+		"SR": ["char_nemurin", "char_ururu"],
+		"SSR": ["char_pote", "char_meteor"]
 	})
 
 static func default_equipment_pool():
 	return GachaPool.new(CATEGORY_EQUIPMENT, {
-		"N": ["equip_n_001", "equip_n_002"],
-		"R": ["equip_r_001", "equip_r_002"],
-		"SR": ["equip_sr_001", "equip_sr_002"],
-		"SSR": ["equip_ssr_001", "equip_ssr_002"]
+		"N": ["equip_fourleaf_charm", "equip_forest_mushroom", "equip_lightdrop_bottle", "equip_spring_flower_charm"],
+		"R": ["equip_windwait_feather", "equip_morning_dew_crown", "equip_traveler_bag"],
+		"SR": ["equip_sky_spear", "equip_young_wind_bow", "equip_blue_dew_ring"],
+		"SSR": ["equip_stardrop_spear", "equip_twilight_grimoire"]
 	})

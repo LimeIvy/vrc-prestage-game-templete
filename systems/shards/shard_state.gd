@@ -5,6 +5,7 @@ const MIN_LEVEL = 1
 const MAX_LEVEL = 5
 
 var shard_id: String
+var definition_id: String
 var rarity: String
 var main_stat: String
 var sub_stat: String
@@ -15,8 +16,11 @@ var current_sub_value: float
 var level: int = MIN_LEVEL
 var growth_history: Array = []
 
-func _init(id: String, shard_rarity: String, shard_main_stat: String, shard_sub_stat: String, main_value: float, sub_value: float) -> void:
+func _init(id: String, shard_rarity: String, shard_main_stat: String, shard_sub_stat: String, main_value: float, sub_value: float, source_definition_id: String = "") -> void:
 	shard_id = id
+	definition_id = source_definition_id
+	if definition_id == "":
+		definition_id = "shard_base"
 	rarity = shard_rarity
 	main_stat = shard_main_stat
 	sub_stat = shard_sub_stat
@@ -37,6 +41,11 @@ func apply_growth(main_tier: float, sub_tier: float) -> void:
 	current_sub_value += initial_sub_value * sub_tier
 	level += 1
 	growth_history.append({"main": main_tier, "sub": sub_tier})
+
+func set_fixed_level_values(target_level: int, main_value: float, sub_value: float) -> void:
+	level = clamp(target_level, MIN_LEVEL, MAX_LEVEL)
+	current_main_value = max(main_value, 0.0)
+	current_sub_value = max(sub_value, 0.0)
 
 func stat_modifiers() -> Dictionary:
 	var modifiers = {}

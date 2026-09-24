@@ -4,40 +4,57 @@ extends RefCounted
 const RARITY_SSR = "SSR"
 
 const STAT_ATTACK_PERCENT = "attack_percent"
-const STAT_CRIT_RATE = "crit_rate"
-const STAT_CRIT_DAMAGE = "crit_damage"
+const STAT_CRITICAL_RATE = "critical_rate"
+const STAT_CRITICAL_DAMAGE = "critical_damage"
 const STAT_ATTACK_SPEED_PERCENT = "attack_speed_percent"
 const STAT_ELEMENT_DAMAGE_PERCENT = "element_damage_percent"
 
 const STAT_POOL = [
 	STAT_ATTACK_PERCENT,
-	STAT_CRIT_RATE,
-	STAT_CRIT_DAMAGE,
+	STAT_CRITICAL_RATE,
+	STAT_CRITICAL_DAMAGE,
 	STAT_ATTACK_SPEED_PERCENT,
 	STAT_ELEMENT_DAMAGE_PERCENT
 ]
 
-const SSR_MAIN_RANGES = {
-	STAT_ATTACK_PERCENT: {"min": 3.0, "max": 3.75},
-	STAT_CRIT_RATE: {"min": 0.10, "max": 0.125},
-	STAT_CRIT_DAMAGE: {"min": 0.50, "max": 0.75},
-	STAT_ATTACK_SPEED_PERCENT: {"min": 0.20, "max": 0.25},
-	STAT_ELEMENT_DAMAGE_PERCENT: {"min": 0.40, "max": 0.60}
+const SSR_MAIN_BY_LEVEL = {
+	STAT_ATTACK_PERCENT: [1.0, 2.0, 3.0, 4.0, 5.0],
+	STAT_ATTACK_SPEED_PERCENT: [0.375, 0.75, 1.125, 1.5, 1.875],
+	STAT_CRITICAL_RATE: [0.2, 0.4, 0.6, 0.8, 1.0],
+	STAT_CRITICAL_DAMAGE: [0.6, 1.2, 1.8, 2.4, 3.0],
+	STAT_ELEMENT_DAMAGE_PERCENT: [0.475, 0.95, 1.425, 1.9, 2.375]
 }
 
-const SSR_SUB_RANGES = {
-	STAT_ATTACK_PERCENT: {"min": 1.0, "max": 1.5},
-	STAT_CRIT_RATE: {"min": 0.05, "max": 0.07},
-	STAT_CRIT_DAMAGE: {"min": 0.20, "max": 0.30},
-	STAT_ATTACK_SPEED_PERCENT: {"min": 0.08, "max": 0.12},
-	STAT_ELEMENT_DAMAGE_PERCENT: {"min": 0.15, "max": 0.25}
+const SSR_SUB_BY_LEVEL = {
+	STAT_ATTACK_PERCENT: [0.4, 0.8, 1.2, 1.6, 2.0],
+	STAT_ATTACK_SPEED_PERCENT: [0.3, 0.6, 0.9, 1.2, 1.5],
+	STAT_CRITICAL_RATE: [0.16, 0.32, 0.48, 0.64, 0.8],
+	STAT_CRITICAL_DAMAGE: [0.48, 0.96, 1.44, 1.92, 2.4],
+	STAT_ELEMENT_DAMAGE_PERCENT: [0.38, 0.76, 1.14, 1.52, 1.9]
+}
+
+const RARITY_MULTIPLIER = {
+	"SSR": 1.0,
+	"SR": 0.8,
+	"R": 0.6,
+	"N": 0.45
 }
 
 static func range_for(rarity: String, stat_id: String, is_main: bool) -> Dictionary:
-	if rarity != RARITY_SSR:
-		push_error("Shard roll range is unresolved for rarity %s" % rarity)
+	var value = value_for(rarity, stat_id, is_main, 1)
+	if value < 0.0:
 		return {}
-	var ranges = SSR_SUB_RANGES
+	return {"min": value, "max": value}
+
+static func value_for(rarity: String, stat_id: String, is_main: bool, level: int) -> float:
+	if not RARITY_MULTIPLIER.has(rarity):
+		push_error("Shard rarity is unknown: %s" % rarity)
+		return -1.0
+	var table = SSR_SUB_BY_LEVEL
 	if is_main:
-		ranges = SSR_MAIN_RANGES
-	return ranges.get(stat_id, {})
+		table = SSR_MAIN_BY_LEVEL
+	if not table.has(stat_id):
+		push_error("Shard stat id is unknown: %s" % stat_id)
+		return -1.0
+	var index = clamp(level, 1, 5) - 1
+	return float(table[stat_id][index]) * float(RARITY_MULTIPLIER[rarity])

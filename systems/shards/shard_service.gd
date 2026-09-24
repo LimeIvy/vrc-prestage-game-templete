@@ -27,14 +27,17 @@ func upgrade_cost(target_level: int) -> int:
 func growth_tiers() -> Array:
 	return _shard_balance.get("growth_tiers_of_initial", [])
 
-func create_shard(shard_id: String, rarity: String, main_stat: String, sub_stat: String, main_roll = null, sub_roll = null):
+func create_shard(shard_id: String, rarity: String, main_stat: String, sub_stat: String, main_roll = null, sub_roll = null, definition_id: String = "shard_base"):
 	if main_stat == sub_stat:
 		push_error("Shard main stat and sub stat must differ: %s" % shard_id)
+		return null
+	if not ShardDefinitionScript.STAT_POOL.has(main_stat) or not ShardDefinitionScript.STAT_POOL.has(sub_stat):
+		push_error("Shard stat id is unknown: %s" % shard_id)
 		return null
 
 	var main_value = _roll_value(rarity, main_stat, true, main_roll)
 	var sub_value = _roll_value(rarity, sub_stat, false, sub_roll)
-	return ShardStateScript.new(shard_id, rarity, main_stat, sub_stat, main_value, sub_value)
+	return ShardStateScript.new(shard_id, rarity, main_stat, sub_stat, main_value, sub_value, definition_id)
 
 func upgrade_shard(shard, main_tier = null, sub_tier = null) -> Dictionary:
 	if not shard.can_upgrade():
@@ -50,7 +53,13 @@ func upgrade_shard(shard, main_tier = null, sub_tier = null) -> Dictionary:
 	var selected_sub_tier = _select_growth_tier(sub_tier)
 	var cost = upgrade_cost(target_level)
 	var before = shard.level
-	shard.apply_growth(selected_main_tier, selected_sub_tier)
+	var main_value = ShardDefinitionScript.value_for(shard.rarity, shard.main_stat, true, target_level)
+	var sub_value = ShardDefinitionScript.value_for(shard.rarity, shard.sub_stat, false, target_level)
+	if main_value >= 0.0 and sub_value >= 0.0:
+		shard.set_fixed_level_values(target_level, main_value, sub_value)
+		shard.growth_history.append({"main": main_value, "sub": sub_value})
+	else:
+		shard.apply_growth(selected_main_tier, selected_sub_tier)
 	return {
 		"success": true,
 		"cost": cost,

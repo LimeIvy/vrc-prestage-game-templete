@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "asset_root": "res://assets/enemies",
+  "palettes": [
+    {"id": 0, "name": "moss", "body": "#9fcf8a", "pattern": "#5f8f69", "accessory": "#d8e88f"},
+    {"id": 1, "name": "clay", "body": "#d4a47d", "pattern": "#9a6d56", "accessory": "#f0d2a2"},
+    {"id": 2, "name": "mist", "body": "#9cc9d6", "pattern": "#658da0", "accessory": "#d6edf2"},
+    {"id": 3, "name": "plum", "body": "#c58ac6", "pattern": "#86548f", "accessory": "#ead0ef"},
+    {"id": 4, "name": "ash", "body": "#b9b9ad", "pattern": "#77796f", "accessory": "#e4e2d2"},
+    {"id": 5, "name": "sun", "body": "#e6c66d", "pattern": "#a98442", "accessory": "#fff0a8"}
+  ],
+  "bodies": [
+    {
+      "id": "round_01",
+      "file": "bodies/body_round_01.png",
+      "family": "round",
+      "face_anchor": {"x": 180, "y": 130},
+      "head_anchor": {"x": 180, "y": 34},
+      "pattern_area": {"x": 56, "y": 38, "w": 300, "h": 220},
+      "eye_spacing": 110,
+      "allowed_patterns": ["none", "spots_01", "crack_01"],
+      "allowed_accessories": ["none", "leaf_01", "ring_01", "patch_01"]
+    },
+    {
+      "id": "long_01",
+      "file": "bodies/body_long_01.png",
+      "family": "long",
+      "face_anchor": {"x": 180, "y": 104},
+      "head_anchor": {"x": 180, "y": 18},
+      "pattern_area": {"x": 82, "y": 24, "w": 248, "h": 240},
+      "eye_spacing": 58,
+      "allowed_patterns": ["none", "stripe_01", "crack_01"],
+      "allowed_accessories": ["none", "ring_01", "patch_01"]
+    },
+    {
+      "id": "fluffy_01",
+      "file": "bodies/body_fluffy_01.png",
+      "family": "fluffy",
+      "face_anchor": {"x": 180, "y": 140},
+      "head_anchor": {"x": 180, "y": 42},
+      "pattern_area": {"x": 48, "y": 48, "w": 318, "h": 210},
+      "eye_spacing": 96,
+      "allowed_patterns": ["none", "spots_01", "stripe_01"],
+      "allowed_accessories": ["none", "leaf_01", "patch_01"]
+    }
+  ],
+  "eyes": [
+    {"id": "dot_01", "file": "eyes/eye_dot_01.png", "size": {"w": 84, "h": 84}, "default_scale": 1.0, "eye_spacing": 90},
+    {"id": "sleepy_01", "file": "eyes/eye_sleepy_01.png", "size": {"w": 108, "h": 64}, "default_scale": 1.0, "eye_spacing": 96},
+    {"id": "wide_01", "file": "eyes/eye_wide_01.png", "size": {"w": 96, "h": 96}, "default_scale": 1.0, "eye_spacing": 88}
+  ],
+  "mouths": [
+    {"id": "small_01", "file": "mouths/mouth_small_01.png", "size": {"w": 52, "h": 34}, "offset": {"x": 0, "y": 46}},
+    {"id": "open_01", "file": "mouths/mouth_open_01.png", "size": {"w": 48, "h": 48}, "offset": {"x": 0, "y": 50}},
+    {"id": "flat_01", "file": "mouths/mouth_flat_01.png", "size": {"w": 68, "h": 28}, "offset": {"x": 0, "y": 44}}
+  ],
+  "patterns": [
+    {"id": "none", "file": ""},
+    {"id": "spots_01", "file": "patterns/pattern_spots_01.png"},
+    {"id": "crack_01", "file": "patterns/pattern_crack_01.png"},
+    {"id": "stripe_01", "file": "patterns/pattern_stripe_01.png"}
+  ],
+  "accessories": [
+    {"id": "none", "file": ""},
+    {"id": "leaf_01", "file": "accessories/acc_leaf_01.png"},
+    {"id": "ring_01", "file": "accessories/acc_ring_01.png"},
+    {"id": "patch_01", "file": "accessories/acc_patch_01.png"}
+  ]
+}

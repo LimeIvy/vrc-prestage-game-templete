@@ -3,7 +3,7 @@ extends RefCounted
 
 const ElementServiceScript = preload("res://systems/combat/element_service.gd")
 
-signal enemy_damaged(stage: int, remaining_hp: float)
+signal enemy_damaged(stage: int, remaining_hp: float, damage: float)
 signal stage_cleared(stage: int)
 signal boss_failed(stage: int)
 signal enemy_spawned(stage: int, hp: float)
@@ -85,7 +85,7 @@ func _apply_damage(damage: float) -> bool:
 		return false
 
 	stage_progression.current_enemy_hp = max(stage_progression.current_enemy_hp - damage, 0.0)
-	enemy_damaged.emit(stage_progression.current_stage, stage_progression.current_enemy_hp)
+	enemy_damaged.emit(stage_progression.current_stage, stage_progression.current_enemy_hp, damage)
 
 	if stage_progression.current_enemy_hp <= 0.0:
 		var cleared_stage = stage_progression.current_stage

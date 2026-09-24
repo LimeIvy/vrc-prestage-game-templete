@@ -6,11 +6,15 @@ const MAX_LEVEL = 30
 const SHARD_SOCKET_COUNT = 3
 
 var equipment_id: String
+var definition_id: String
 var level: int = MIN_LEVEL
 var shard_socket_ids: Array = []
 
-func _init(id: String, initial_level: int = MIN_LEVEL) -> void:
+func _init(id: String, initial_level: int = MIN_LEVEL, source_definition_id: String = "") -> void:
 	equipment_id = id
+	definition_id = source_definition_id
+	if definition_id == "":
+		definition_id = id
 	set_level(initial_level)
 	shard_socket_ids = ["", "", ""]
 

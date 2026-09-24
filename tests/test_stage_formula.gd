@@ -1,21 +1,25 @@
-extends SceneTree
+﻿extends SceneTree
 const EPSILON = 0.001
 const StageFormulaScript = preload("res://systems/progression/stage_formula.gd")
 const StageProgressionScript = preload("res://systems/progression/stage_progression.gd")
 const ElementServiceScript = preload("res://systems/combat/element_service.gd")
 const CombatCharacterStateScript = preload("res://systems/combat/combat_character_state.gd")
 const CombatSessionScript = preload("res://systems/combat/combat_session.gd")
+const EnemyVisualGeneratorScript = preload("res://systems/enemies/enemy_visual_generator.gd")
 const CharacterDefinitionScript = preload("res://systems/characters/character_definition.gd")
 const CharacterStateScript = preload("res://systems/characters/character_state.gd")
 const CharacterStatServiceScript = preload("res://systems/characters/character_stat_service.gd")
+const StatCalculatorScript = preload("res://systems/stats/stat_calculator.gd")
 const EquipmentDefinitionScript = preload("res://systems/equipment/equipment_definition.gd")
 const EquipmentStateScript = preload("res://systems/equipment/equipment_state.gd")
 const EquipmentAssignmentScript = preload("res://systems/equipment/equipment_assignment.gd")
+const EquipmentServiceScript = preload("res://systems/equipment/equipment_service.gd")
 const EquipmentStatServiceScript = preload("res://systems/equipment/equipment_stat_service.gd")
 const EquipmentUpgradeServiceScript = preload("res://systems/equipment/equipment_upgrade_service.gd")
 const ShardDefinitionScript = preload("res://systems/shards/shard_definition.gd")
 const ShardInventoryScript = preload("res://systems/shards/shard_inventory.gd")
 const ShardServiceScript = preload("res://systems/shards/shard_service.gd")
+const ShardSocketServiceScript = preload("res://systems/shards/shard_socket_service.gd")
 const ReturnStateScript = preload("res://systems/return/return_state.gd")
 const ReturnServiceScript = preload("res://systems/return/return_service.gd")
 const GachaPoolScript = preload("res://systems/gacha/gacha_pool.gd")
@@ -35,9 +39,11 @@ func _init() -> void:
 	_test_stage_progression(formula)
 	_test_real_time_combat(formula)
 	_test_boss_flow(formula)
+	_test_enemy_visual_generation()
 	_test_character_growth()
 	_test_equipment()
 	_test_shards()
+	_test_data_foundation()
 	_test_elements_and_reactions()
 	_test_return()
 	_test_gacha()
@@ -134,6 +140,39 @@ func _test_boss_flow(formula) -> void:
 	progression.defeat_current_enemy()
 	_assert_equal(progression.current_stage, 49, "auto boss retry off farms previous normal stage")
 
+func _test_enemy_visual_generation() -> void:
+	var generator = EnemyVisualGeneratorScript.new()
+	var first = generator.recipe_for(1250, 0, 1)
+	var second = generator.recipe_for(1250, 0, 1)
+	var other_stage = generator.recipe_for(1251, 0, 1)
+	_assert_equal(first, second, "enemy visual recipe is deterministic")
+	_assert_true(first != other_stage, "enemy visual recipe changes with seed input")
+	_assert_equal(int(first.get("version", 0)), 1, "enemy visual recipe stores version")
+	_assert_true(first.has("body"), "enemy visual recipe has body")
+	_assert_true(first.has("eyes"), "enemy visual recipe has eyes")
+	_assert_true(first.has("mouth"), "enemy visual recipe has mouth")
+
+	var body = _catalog_item(generator.catalog.get("bodies", []), str(first.get("body", "")))
+	_assert_true(not body.is_empty(), "enemy visual body exists in catalog")
+	for body_definition in generator.catalog.get("bodies", []):
+		_assert_true(body_definition.has("face_anchor"), "enemy visual body has face anchor")
+		_assert_true(body_definition.has("head_anchor"), "enemy visual body has head anchor")
+		_assert_true(body_definition.has("eye_spacing"), "enemy visual body has default eye spacing")
+		_assert_true(body_definition.has("pattern_area"), "enemy visual body has pattern area")
+	var allowed_patterns = body.get("allowed_patterns", [])
+	var allowed_accessories = body.get("allowed_accessories", [])
+	_assert_true(allowed_patterns.has(str(first.get("pattern", ""))), "enemy visual pattern obeys body rule")
+	_assert_true(allowed_accessories.has(str(first.get("accessory", ""))), "enemy visual accessory obeys body rule")
+
+	var eye = generator.part_definition("eye", str(first.get("eyes", "")))
+	var mouth = generator.part_definition("mouth", str(first.get("mouth", "")))
+	_assert_true(not eye.is_empty(), "enemy visual eye exists in catalog")
+	_assert_true(not mouth.is_empty(), "enemy visual mouth exists in catalog")
+	_assert_true(eye.has("size"), "enemy visual eye has local part size")
+	_assert_true(eye.has("eye_spacing"), "enemy visual eye can override spacing")
+	_assert_true(mouth.has("size"), "enemy visual mouth has local part size")
+	_assert_true(mouth.has("offset"), "enemy visual mouth has face-relative offset")
+
 func _test_character_growth() -> void:
 	var stats = CharacterStatServiceScript.new()
 	var ssr = CharacterDefinitionScript.new("test_ssr", "SSR", "fire", "pure_dps", 1.0)
@@ -169,7 +208,7 @@ func _test_equipment() -> void:
 	var character_stats = CharacterStatServiceScript.new()
 	var ssr_equipment = EquipmentDefinitionScript.new("test_ssr_weapon", "SSR", "attack")
 	var ssr_equipment_state = EquipmentStateScript.new("test_ssr_weapon", 1)
-	_assert_approx(equipment_stats.attack_percent(ssr_equipment, ssr_equipment_state), 0.6, "SSR Lv1 equipment attack percent")
+	_assert_approx(equipment_stats.attack_percent(ssr_equipment, ssr_equipment_state), 0.12, "SSR Lv1 equipment attack percent")
 	ssr_equipment_state.set_level(30)
 	_assert_approx(equipment_stats.attack_percent(ssr_equipment, ssr_equipment_state), 12.0, "SSR Lv30 equipment attack percent")
 	_assert_true(not equipment_stats.is_attack_percent_defined(ssr_equipment, 2), "unlisted equipment levels remain unresolved")
@@ -180,7 +219,7 @@ func _test_equipment() -> void:
 	ssr_equipment_state.set_level(1)
 	var modifiers = equipment_stats.stat_modifiers(ssr_equipment, ssr_equipment_state)
 	var combat_state = character_stats.combat_state(character_definition, character_state, modifiers)
-	_assert_approx(combat_state.final_attack, 16.0, "equipment attack percent applies to final attack")
+	_assert_approx(combat_state.final_attack, 11.2, "equipment attack percent applies to final attack")
 
 	var assignment = EquipmentAssignmentScript.new()
 	assignment.equip("equipped_character", "test_ssr_weapon")
@@ -213,22 +252,22 @@ func _test_shards() -> void:
 		"SSR",
 		ShardDefinitionScript.STAT_ATTACK_PERCENT,
 		ShardDefinitionScript.STAT_ATTACK_SPEED_PERCENT,
-		3.0,
-		0.08
+		null,
+		null
 	)
 	_assert_true(shard != null, "SSR shard can be created")
 	_assert_equal(shard.level, 1, "new shard starts at level 1")
 	_assert_equal(shard.main_stat != shard.sub_stat, true, "shard main and sub differ")
-	_assert_approx(shard.current_main_value, 3.0, "forced main roll uses range value")
-	_assert_approx(shard.current_sub_value, 0.08, "forced sub roll uses range value")
+	_assert_approx(shard.current_main_value, 1.0, "main starts at fixed level value")
+	_assert_approx(shard.current_sub_value, 0.3, "sub starts at fixed level value")
 	_assert_equal(shard_service.upgrade_cost(2), 10, "shard Lv1 to 2 cost")
 
 	var upgrade_result = shard_service.upgrade_shard(shard, 0.15, 0.30)
 	_assert_true(upgrade_result["success"], "shard upgrade succeeds")
 	_assert_equal(upgrade_result["cost"], 10, "shard upgrade consumes configured cost")
 	_assert_equal(shard.level, 2, "shard level increases")
-	_assert_approx(shard.current_main_value, 3.45, "main grows from initial roll")
-	_assert_approx(shard.current_sub_value, 0.104, "sub grows from initial roll")
+	_assert_approx(shard.current_main_value, 2.0, "main grows to fixed level value")
+	_assert_approx(shard.current_sub_value, 0.6, "sub grows to fixed level value")
 
 	shard_service.upgrade_shard(shard, 0.15, 0.15)
 	shard_service.upgrade_shard(shard, 0.15, 0.15)
@@ -242,8 +281,8 @@ func _test_shards() -> void:
 	var extra_shard = shard_service.create_shard(
 		"shard_2",
 		"SSR",
-		ShardDefinitionScript.STAT_CRIT_RATE,
-		ShardDefinitionScript.STAT_CRIT_DAMAGE,
+		ShardDefinitionScript.STAT_CRITICAL_RATE,
+		ShardDefinitionScript.STAT_CRITICAL_DAMAGE,
 		0.10,
 		0.20
 	)
@@ -263,7 +302,7 @@ func _test_shards() -> void:
 	var character_definition = CharacterDefinitionScript.new("shard_user", "SSR", "fire", "pure_dps", 1.0)
 	var character_state = CharacterStateScript.new("shard_user", 1, 0)
 	var combat_state = character_stats.combat_state(character_definition, character_state, combined_modifiers)
-	_assert_true(combat_state.final_attack > 16.0, "shard attack adds beyond equipment attack")
+	_assert_true(combat_state.final_attack > 11.2, "shard attack adds beyond equipment attack")
 	_assert_true(combat_state.final_attack_speed > 1.0, "shard attack speed affects combat state")
 
 	var invalid_shard = shard_service.create_shard(
@@ -275,6 +314,116 @@ func _test_shards() -> void:
 		1.0
 	)
 	_assert_equal(invalid_shard, null, "main and sub cannot match")
+
+func _test_data_foundation() -> void:
+	var character_definition = CharacterDefinitionScript.new("char_foundation_a", "SSR", "fire", "pure_dps", 1.0)
+	var character_state = CharacterStateScript.new("char_foundation_a", 99, 0)
+	_assert_equal(character_state.level, 30, "character max level is 30")
+
+	var equipment_definition = EquipmentDefinitionScript.new("equip_def_shared", "SSR", "attack", "Display Name")
+	var equipment_a = EquipmentStateScript.new("equip_inst_a", 99, "equip_def_shared")
+	var equipment_b = EquipmentStateScript.new("equip_inst_b", 1, "equip_def_shared")
+	_assert_equal(equipment_a.level, 30, "equipment max level is 30")
+	_assert_equal(equipment_a.definition_id, "equip_def_shared", "equipment instance keeps definition id")
+	_assert_equal(equipment_a.shard_socket_ids.size(), 3, "equipment keeps exactly three sockets")
+
+	var shard_service = ShardServiceScript.new()
+	var shard_inventory = ShardInventoryScript.new(10)
+	var shard_attack = shard_service.create_shard(
+		"shard_inst_attack",
+		"SSR",
+		ShardDefinitionScript.STAT_ATTACK_PERCENT,
+		ShardDefinitionScript.STAT_CRITICAL_RATE,
+		3.0,
+		0.1,
+		"shard_def_ssr"
+	)
+	var shard_speed = shard_service.create_shard(
+		"shard_inst_speed",
+		"SSR",
+		ShardDefinitionScript.STAT_ATTACK_SPEED_PERCENT,
+		ShardDefinitionScript.STAT_ATTACK_PERCENT,
+		0.2,
+		1.0,
+		"shard_def_ssr"
+	)
+	var invalid_same_stats = shard_service.create_shard(
+		"shard_invalid_same",
+		"SSR",
+		ShardDefinitionScript.STAT_ATTACK_PERCENT,
+		ShardDefinitionScript.STAT_ATTACK_PERCENT,
+		3.0,
+		1.0,
+		"shard_def_ssr"
+	)
+	_assert_equal(invalid_same_stats, null, "main and sub duplicate is rejected")
+	_assert_equal(shard_attack.definition_id, "shard_def_ssr", "shard instance keeps definition id")
+	shard_inventory.add_shard(shard_attack)
+	shard_inventory.add_shard(shard_speed)
+	while shard_attack.can_upgrade():
+		shard_service.upgrade_shard(shard_attack, 0.15, 0.15)
+	_assert_equal(shard_attack.level, 5, "shard max level is 5")
+
+	var equipment_states = {
+		"equip_inst_a": equipment_a,
+		"equip_inst_b": equipment_b
+	}
+	var socket_service = ShardSocketServiceScript.new()
+	var socket_result = socket_service.socket_shard(equipment_states, shard_inventory, "equip_inst_a", 0, "shard_inst_attack")
+	_assert_true(socket_result["success"], "shard can be socketed by instance id")
+	var duplicate_socket = socket_service.socket_shard(equipment_states, shard_inventory, "equip_inst_a", 1, "shard_inst_attack")
+	_assert_equal(duplicate_socket["reason"], "duplicate_shard", "same shard cannot be socketed twice")
+	var move_socket = socket_service.move_shard(equipment_states, shard_inventory, "equip_inst_b", 2, "shard_inst_attack")
+	_assert_true(move_socket["success"], "shard can move to another socket")
+	_assert_equal(equipment_a.shard_socket_ids[0], "", "moving shard detaches old socket")
+	_assert_equal(equipment_b.shard_socket_ids[2], "shard_inst_attack", "moving shard attaches target socket")
+	var bad_socket = socket_service.socket_shard(equipment_states, shard_inventory, "equip_inst_b", 3, "shard_inst_speed")
+	_assert_equal(bad_socket["reason"], "socket_out_of_range", "socket index outside 0-2 is rejected")
+	var unknown_shard = socket_service.socket_shard(equipment_states, shard_inventory, "equip_inst_b", 1, "missing_shard")
+	_assert_equal(unknown_shard["reason"], "unknown_shard", "unknown shard id is rejected")
+
+	var assignment = EquipmentAssignmentScript.new()
+	var equipment_service = EquipmentServiceScript.new()
+	var valid_characters = {"char_foundation_a": true, "char_foundation_b": true}
+	var equip_result = equipment_service.equip_to_character("char_foundation_a", "equip_inst_a", valid_characters, equipment_states, assignment)
+	_assert_true(equip_result["success"], "equipment can be equipped")
+	var move_equipment = equipment_service.equip_to_character("char_foundation_b", "equip_inst_a", valid_characters, equipment_states, assignment)
+	_assert_true(move_equipment["success"], "equipment used by another character can move")
+	_assert_equal(assignment.equipped_equipment_id("char_foundation_a"), "", "moved equipment leaves old character")
+	_assert_equal(assignment.equipped_equipment_id("char_foundation_b"), "equip_inst_a", "moved equipment reaches new character")
+	var unknown_equipment = equipment_service.equip_to_character("char_foundation_a", "missing_equipment", valid_characters, equipment_states, assignment)
+	_assert_equal(unknown_equipment["reason"], "unknown_equipment", "unknown equipment id is rejected")
+
+	equipment_a.set_shard_socket(0, "shard_inst_attack")
+	equipment_a.set_level(1)
+	equipment_b.set_shard_socket(2, "")
+	var stat_calculator = StatCalculatorScript.new()
+	var combat_state = stat_calculator.combat_state(character_definition, CharacterStateScript.new("char_foundation_a", 1, 0), equipment_definition, equipment_a, shard_inventory, 0.0)
+	_assert_approx(combat_state.final_attack, 61.2, "equipment and shard attack add once")
+	var diff = stat_calculator.socket_stat_delta(equipment_definition, equipment_a, shard_inventory, 1, "shard_inst_speed")
+	_assert_true(diff["success"], "socket stat diff can be calculated")
+	_assert_true(diff["delta"].has(ShardDefinitionScript.STAT_ATTACK_SPEED_PERCENT), "socket stat diff includes new shard stat")
+
+	var formula = StageFormulaScript.new()
+	var stage_progression = StageProgressionScript.new(formula)
+	var return_state = ReturnStateScript.new()
+	var character_states: Array = [CharacterStateScript.new("char_foundation_a", 1, 0)]
+	var save_assignment = EquipmentAssignmentScript.new()
+	save_assignment.equip("char_foundation_a", "equip_inst_a")
+	var save_service = SaveServiceScript.new()
+	var save_data = save_service.create_save(stage_progression, return_state, character_states, equipment_states, save_assignment, GachaInventoryScript.new(), shard_inventory)
+	var loaded_equipment = {
+		"equip_inst_a": EquipmentStateScript.new("equip_inst_a", 1, "equip_def_shared"),
+		"equip_inst_b": EquipmentStateScript.new("equip_inst_b", 1, "equip_def_shared")
+	}
+	var loaded_shards = ShardInventoryScript.new(10)
+	var loaded_assignment = EquipmentAssignmentScript.new()
+	save_service.apply_save(save_data, StageProgressionScript.new(formula), ReturnStateScript.new(), character_states, loaded_equipment, loaded_assignment, GachaInventoryScript.new(), loaded_shards)
+	_assert_true(loaded_shards.has_shard("shard_inst_attack"), "loaded save keeps shard instance id")
+	_assert_equal(loaded_shards.get_shard("shard_inst_attack").definition_id, "shard_def_ssr", "loaded save keeps shard definition id")
+	_assert_equal(loaded_equipment["equip_inst_a"].definition_id, "equip_def_shared", "loaded save keeps equipment definition id")
+	_assert_equal(loaded_equipment["equip_inst_a"].shard_socket_ids[0], "shard_inst_attack", "loaded save keeps socket relationship")
+	_assert_equal(loaded_assignment.equipped_equipment_id("char_foundation_a"), "equip_inst_a", "loaded save keeps equipment assignment")
 
 func _test_elements_and_reactions() -> void:
 	var elements = ElementServiceScript.new()
@@ -467,7 +616,7 @@ func _test_save_load() -> void:
 		"save_shard",
 		"SSR",
 		ShardDefinitionScript.STAT_ATTACK_PERCENT,
-		ShardDefinitionScript.STAT_CRIT_RATE,
+		ShardDefinitionScript.STAT_CRITICAL_RATE,
 		3.0,
 		0.1
 	)
@@ -652,6 +801,14 @@ func _gacha_signature(results: Array) -> String:
 	for result in results:
 		parts.append("%s:%s:%s" % [str(result.get("category", "")), str(result.get("rarity", "")), str(result.get("item_id", ""))])
 	return "|".join(parts)
+
+func _catalog_item(items, item_id: String) -> Dictionary:
+	if typeof(items) != TYPE_ARRAY:
+		return {}
+	for item in items:
+		if str(item.get("id", "")) == item_id:
+			return item
+	return {}
 
 func _assert_equal(actual, expected, label: String) -> void:
 	if actual != expected:
